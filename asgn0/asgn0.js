@@ -144,11 +144,5 @@ function main() {
     ctx.fillStyle = "rgba(0,0,0,1.0)";
     ctx.fillRect(0, 0, 400, 400);
 
-    // Draw a red vector line
-    //var redVector = new Vector3([2.25, 2.25, 0]);
-    //redVector.mul(20); // Scale the vector by 20
-    //drawVector(redVector, "red");
-
-
 }
 

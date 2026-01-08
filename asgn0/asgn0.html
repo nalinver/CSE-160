@@ -11,34 +11,43 @@
         Please use a browser that supports "canvas"
     </canvas>
     <div>
-        <label>V1: </label>
-        <label for="vec_x"></label>
-        <input type="number" id="vec_x" name="vec_x"><br><br>
-        <label for="vec_x"></label>
-        <input type="number" id="vec_y" name="vec_y"><br><br>
+        <div style="margin-bottom: 10px;">
+            <label>V1: </label>
+            <label for="vec_x">x</label>
+            <input type="number" id="vec_x" name="vec_x" style="display: inline-block; margin-right: 5px;">
+            <label for="vec_y">y</label>
+            <input type="number" id="vec_y" name="vec_y" style="display: inline-block;">
+        </div>
 
-        <label>V2: </label>
-        <input type="number" id="vec_x2" name="vec_x2"><br><br>
-        <input type="number" id="vec_y2" name="vec_y2"><br><br>
+        <div style="margin-bottom: 10px;">
+            <label>V2: </label>
+            <label for="vec_x2">x</label>
+            <input type="number" id="vec_x2" name="vec_x2" style="display: inline-block; margin-right: 5px;">
+            <label for="vec_y2">y</label>
+            <input type="number" id="vec_y2" name="vec_y2" style="display: inline-block;">
+        </div>
+
         <input type="button" value="Draw Vectors" onclick="handleDrawEvent()">
     </div>
 
-    <label for="operation">Operation:</label>
-    <select name="operation" id="operation">
-        <option value="Add">Add</option>
-        <option value="Subtract">Subtract</option>
-        <option value="Divide">Divide</option>
-        <option value="Multiply">Multiply</option>
-        <option value="Magnitude">Magnitude</option>
-        <option value="Normalize">Normalize</option>
-        <option value="Angle Between">Angle Between</option>
-        <option value="Area">Area</option>
-    </select>
-    <br><br>
+    <div style="margin-top: 20px; margin-bottom: 10px;">
+        <label for="operation">Operation:</label>
+        <select name="operation" id="operation" style="display: inline-block; margin-right: 10px;">
+            <option value="Add">Add</option>
+            <option value="Subtract">Subtract</option>
+            <option value="Divide">Divide</option>
+            <option value="Multiply">Multiply</option>
+            <option value="Magnitude">Magnitude</option>
+            <option value="Normalize">Normalize</option>
+            <option value="Angle Between">Angle Between</option>
+            <option value="Area">Area</option>
+        </select>
+        <label for="scalar">Scalar:</label>
+        <input type="number" id="scalar" name="scalar" style="display: inline-block; margin-right: 10px;">
+    </div>
     <input type="button" value="Draw Operations" onclick="handleDrawOperationsEvent()">
 
-    <label for="Scalar">Scalar:</label>
-    <input type="number" id="scalar" name="scalar">
+
 
     <script src="lib/cuon_matrix.js"></script>
     <script src="asgn0.js"></script>

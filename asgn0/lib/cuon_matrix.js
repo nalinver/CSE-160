@@ -141,12 +141,9 @@ class Vector3 {
         // Insert your code here.
         // This function should change this vector (this.elements) and not create a new vector.
         var mag = this.magnitude();
-        console.log("magnitude: ", mag);
         this.elements[0] /= mag;
         this.elements[1] /= mag;
         this.elements[2] /= mag;
-        //console.log("magnitude: ", this.magnitude());
-        console.log("elements: ", this.elements);
         // Don't delete the return statement.
         return this;
     };
