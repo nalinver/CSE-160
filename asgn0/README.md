@@ -1,6 +1,6 @@
 # Assignment 0
 
-## Nalin Verma - SID 1973625
+## Nalin Verma
 
 A web-based interactive vector visualization tool that allows users to manipulate and perform operations on 2D vectors.
 
