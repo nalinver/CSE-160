@@ -45,4 +45,3 @@ A web-based interactive vector visualization tool that allows users to manipulat
 - **Angle Between**: Calculates and logs the angle in degrees between the vectors
 - **Area**: Computes and logs the area of the triangle formed by the two vectors
 
-Blashashas
