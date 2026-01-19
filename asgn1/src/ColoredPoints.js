@@ -1,5 +1,5 @@
 // ColoredPoint.js (c) 2012 matsuda
-// Vertex shader program
+// Simple shader programs for drawing colored points/shapes
 var VSHADER_SOURCE = `
   attribute vec4 a_Position; 
   uniform float u_size; 
@@ -7,15 +7,16 @@ var VSHADER_SOURCE = `
   void main() {
     gl_Position = a_Position;
     gl_PointSize = u_size;
-  }`
+  }
+`;
 
-// Fragment shader program
-var FSHADER_SOURCE =
-    'precision mediump float;\n' +
-    'uniform vec4 u_FragColor;\n' +  // uniform変数
-    'void main() {\n' +
-    '  gl_FragColor = u_FragColor;\n' +
-    '}\n';
+var FSHADER_SOURCE = `
+  precision mediump float;
+  uniform vec4 u_FragColor;
+  void main() {
+    gl_FragColor = u_FragColor;
+  }
+`;
 
 
 // Global related to the canvas
@@ -69,7 +70,7 @@ function connectVariableGLSL() {
 
 
 }
-//consts
+// Shape type constants
 const POINT = 0;
 const TRIANGLE = 1;
 const CIRCLE = 2;
@@ -77,45 +78,65 @@ const CIRCLE = 2;
 // globals related to UI elements
 let g_selectedColor = [1.0, 1.0, 1.0, 1.0];
 let g_selectedSize = 20;
-let g_selectedType = POINT; // default is POINT
-let g_selectedSegments = 10; // default is 10
-
+let g_selectedType = POINT;       // default is POINT
+let g_selectedSegments = 10;      // default is 10
+let g_selectedSymmetry = 'off';   // default is off
+let g_symmetrySlices = 6;         // radial symmetry slice count
 function addActionsForHtmlUI() {
+    // Color sliders
+    document.getElementById('redSlide').addEventListener('mouseup', function () {
+        g_selectedColor[0] = this.value / 100;
+    });
+    document.getElementById('greenSlide').addEventListener('mouseup', function () {
+        g_selectedColor[1] = this.value / 100;
+    });
+    document.getElementById('blueSlide').addEventListener('mouseup', function () {
+        g_selectedColor[2] = this.value / 100;
+    });
 
+    // Point size slider
+    document.getElementById('pointSize').addEventListener('mouseup', function () {
+        g_selectedSize = this.value;
+    });
 
-    // slider entries
-    document.getElementById('redSlide').addEventListener('mouseup', function () { g_selectedColor[0] = this.value / 100; })
-    document.getElementById('greenSlide').addEventListener('mouseup', function () { g_selectedColor[1] = this.value / 100; })
-    document.getElementById('blueSlide').addEventListener('mouseup', function () { g_selectedColor[2] = this.value / 100; })
+    // Circle segment count
+    document.getElementById('segmentCount').addEventListener('mouseup', function () {
+        g_selectedSegments = parseInt(this.value);
+    });
 
-    // point slider
-    document.getElementById('pointSize').addEventListener('mouseup', function () { g_selectedSize = this.value; });
+    // Clear canvas button
+    document.getElementById('clearButton').onclick = function () {
+        g_shapesList = [];
+        renderAllShapes();
+    };
 
-    // segment count
-    document.getElementById('segmentCount').addEventListener('mouseup', function () { g_selectedSegments = this.value; });
-
-    // clear canvas button
-    document.getElementById('clearButton').onclick = function () { g_shapesList = []; renderAllShapes(); };
-
-    // point type
+    // Shape type buttons
     document.getElementById('point').onclick = function () { g_selectedType = POINT; };
     document.getElementById('triangle').onclick = function () { g_selectedType = TRIANGLE; };
     document.getElementById('circle').onclick = function () { g_selectedType = CIRCLE; };
 
+    // Symmetry controls
+    document.getElementById('symmetry').addEventListener('change', function () {
+        g_selectedSymmetry = this.value;
+    });
+    document.getElementById('radialSlices').addEventListener('input', function () {
+        g_symmetrySlices = Math.max(2, parseInt(this.value));
+    });
 }
 
 function main() {
-
     setUpWebGL();
     connectVariableGLSL();
 
-    // set up actions for buttons
+    // Set up actions for buttons and sliders
     addActionsForHtmlUI();
 
-    // Register function (event handler) to be called on a mouse press
-    //canvas.onmousedown = click;
-    //canvas.onmousemove = click;
-    canvas.onmousemove = function (ev) { if (ev.buttons == 1) { click(ev) } };
+    // Draw while mouse is held down and moved
+    canvas.onmousemove = function (ev) {
+        if (ev.buttons === 1) {
+            click(ev);
+        }
+    };
 
     // Specify the color for clearing <canvas>
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -126,47 +147,72 @@ function main() {
 
 // globals for point attribute
 var g_shapesList = [];
-//var g_points = [];  // The array for the position of a mouse press
-//var g_colors = [];  // The array to store the color of a point
-//var g_sizes = [];
 
 function click(ev) {
+    const [x, y] = convertCoordinatesEventToGL(ev);
 
-    let [x, y] = convertCoordinatesEventToGL(ev);
+    const baseShape = buildShapeAt(x, y);
+    g_shapesList.push(baseShape);
 
-    let point;
-    if (g_selectedType == POINT) {
-        point = new Point();
-    } else if (g_selectedType == TRIANGLE) {
-        point = new Triangle();
-    } else {
-        point = new Circle(g_selectedSegments);
-        point.segments = g_selectedSegments;
+    const mirroredShapes = createSymmetricCopies(baseShape, x, y);
+    for (let i = 0; i < mirroredShapes.length; i++) {
+        g_shapesList.push(mirroredShapes[i]);
     }
-    point.position = [x, y];
-    point.color = g_selectedColor.slice();
-    point.size = g_selectedSize;
-    g_shapesList.push(point);
-
-    // Store the coordinates to g_points array
-    //g_points.push([x, y]);
-
-    // g_colors.push(g_selectedColor.slice());
-    //g_colors.push([g_selectedColor[0], g_selectedColor[1], g_selectedColor[2], g_selectedColor[3]]);
-
-    // Store selected Size
-    //g_sizes.push(g_selectedSize);
-
-    // Store the coordinates to g_points array
-    //if (x >= 0.0 && y >= 0.0) {      // First quadrant
-    //  g_colors.push([1.0, 0.0, 0.0, 1.0]);  // Red
-    //} else if (x < 0.0 && y < 0.0) { // Third quadrant
-    //  g_colors.push([0.0, 1.0, 0.0, 1.0]);  // Green
-    //} else {                         // Others
-    //  g_colors.push([1.0, 1.0, 1.0, 1.0]);  // White
-    //}
 
     renderAllShapes();
+}
+
+function buildShapeAt(x, y) {
+    let shape;
+    if (g_selectedType === POINT) {
+        shape = new Point();
+    } else if (g_selectedType === TRIANGLE) {
+        shape = new Triangle();
+    } else {
+        shape = new Circle(g_selectedSegments);
+        shape.segments = g_selectedSegments;
+    }
+    shape.position = [x, y];
+    shape.color = g_selectedColor.slice();
+    shape.size = g_selectedSize;
+    return shape;
+}
+
+// Create the same shape at a different specified position
+function cloneShape(shapeTemplate, x, y) {
+    // Reuse the builder to keep config consistent
+    const clone = buildShapeAt(x, y);
+    // Ensure size/color mirror the original in case sliders change mid-drag
+    clone.color = shapeTemplate.color.slice();
+    clone.size = shapeTemplate.size;
+    if (clone.segments !== undefined && shapeTemplate.segments !== undefined) {
+        clone.segments = shapeTemplate.segments;
+    }
+    return clone;
+}
+
+// Depending on the action selected perform the symmetry operation
+function createSymmetricCopies(baseShape, x, y) {
+    if (g_selectedSymmetry === 'off') return [];
+
+    const copies = [];
+
+
+    if (g_selectedSymmetry === 'vertical') {
+        copies.push(cloneShape(baseShape, -x, y)); // mirror the shape across the vertical axis
+    } else if (g_selectedSymmetry === 'horizontal') {
+        copies.push(cloneShape(baseShape, x, -y)); // mirror the shape across the horizontal axis
+    } else if (g_selectedSymmetry === 'radial') {
+        const slices = Math.max(2, Math.floor(g_symmetrySlices)); // number of slices to create
+        const step = (2 * Math.PI) / slices;
+        for (let i = 1; i < slices; i++) {
+            const angle = step * i;
+            const rx = x * Math.cos(angle) - y * Math.sin(angle);
+            const ry = x * Math.sin(angle) + y * Math.cos(angle);
+            copies.push(cloneShape(baseShape, rx, ry));
+        }
+    }
+    return copies;
 }
 
 function convertCoordinatesEventToGL(ev) {

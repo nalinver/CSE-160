@@ -36,6 +36,20 @@
     <p>
         Segments <input type='range' min='3' max='50' value='10' class='slider' id='segmentCount'>
 
+    <p>
+        Symmetry
+        <select name="symmetry" id="symmetry" style="display: inline-block; margin-right: 10px;">
+            <option value="off">off</option>
+            <option value="vertical">vertical</option>
+            <option value="horizontal">horizontal</option>
+            <option value="radial">radial</option>
+        </select>
+        Radial slices
+        <input type='range' min='2' max='16' value='6' class='slider' id='radialSlices'>
+
+    <p>
+        <button type="button" id="drawPicture">Draw Picture</button>
+
         <script src="../lib/webgl-utils.js"></script>
         <script src="../lib/webgl-debug.js"></script>
         <script src="../lib/cuon-utils.js"></script>
