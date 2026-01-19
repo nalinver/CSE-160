@@ -10,12 +10,12 @@ var VSHADER_SOURCE = `
   }`
 
 // Fragment shader program
-var FSHADER_SOURCE =
-    'precision mediump float;\n' +
-    'uniform vec4 u_FragColor;\n' +  // uniform変数
-    'void main() {\n' +
-    '  gl_FragColor = u_FragColor;\n' +
-    '}\n';
+var FSHADER_SOURCE = `
+        precision mediump float;
+        uniform vec4 u_FragColor;  // uniform変数
+        void main() {
+        gl_FragColor = u_FragColor;
+    }`
 
 
 // Global related to the canvas
@@ -25,12 +25,13 @@ let a_position;
 let u_FragColor;
 let u_size;
 
+
+// get the canvas and gl context
 function setUpWebGL() {
     // Retrieve <canvas> element
     canvas = document.getElementById('webgl');
 
     // Get the rendering context for WebGL
-    //gl = getWebGLContext(canvas);
     gl = canvas.getContext('webgl', { preserveDrawingBuffer: true });
     if (!gl) {
         console.log('Failed to get the rendering context for WebGL');
@@ -38,6 +39,8 @@ function setUpWebGL() {
     }
 }
 
+
+// compile the shader programs, attach the javascript variables to the GLSL variables
 function connectVariableGLSL() {
     // Initialize shaders
     if (!initShaders(gl, VSHADER_SOURCE, FSHADER_SOURCE)) {
@@ -103,15 +106,13 @@ function addActionsForHtmlUI() {
 
 function main() {
 
-    setUpWebGL();
-    connectVariableGLSL();
+    setUpWebGL(); // get the canvas and gl context
+    connectVariableGLSL(); // compile the shader programs, attach the javascript variables to the GLSL variables
 
     // set up actions for buttons
     addActionsForHtmlUI();
 
     // Register function (event handler) to be called on a mouse press
-    //canvas.onmousedown = click;
-    //canvas.onmousemove = click;
     canvas.onmousemove = function (ev) { if (ev.buttons == 1) { click(ev) } };
 
     // Specify the color for clearing <canvas>
@@ -123,9 +124,7 @@ function main() {
 
 // globals for point attribute
 var g_shapesList = [];
-//var g_points = [];  // The array for the position of a mouse press
-//var g_colors = [];  // The array to store the color of a point
-//var g_sizes = [];
+
 
 function click(ev) {
 
