@@ -22,7 +22,7 @@ class Triangle {
 
         // Draw
         //gl.drawArrays(gl.POINTS, 0, 1);
-        let d = this.size / 200.0;
+        var d = this.size / 200.0;
         drawTriangle([xy[0], xy[1], xy[0] + d, xy[1], xy[0], xy[1] + d]);
 
     }
