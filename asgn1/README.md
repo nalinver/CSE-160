@@ -31,6 +31,7 @@ Every shape you draw can be automatically duplicated with symmetry for a “mirr
 - **Cursor**
     - Generate this README so that it captures what I have done without me having to resummarize.
     - Got stuck trying to figure out why segmentCount slider kept giving me a "gl_segment undefined". Turns out, I don't need to declare a *gl_segment* variable at all, I just need to reference it when I define a new Circle point in buildShapeAt(x,y) (formerly renderAllShapes()).
+    - Asked Cursor to insert all the triangle points because they were very tedious. 
     - Asked it to clean up clutter/debug lines/print statements/weird comments/etc.
 - **GeeksForGeeks**
     - 

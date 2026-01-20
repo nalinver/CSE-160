@@ -9,23 +9,42 @@ class Triangle {
     }
 
     render() {
-
-        var xy = this.position;
-        var rgba = this.color;
-        var size = this.size;
-
-        // Pass the color of a point to u_FragColor variable
+        const rgba = this.color;
         gl.uniform4f(u_FragColor, rgba[0], rgba[1], rgba[2], rgba[3]);
 
-        // Pass the size of a point to u_size variable
-        gl.uniform1f(u_size, size);
+        let vertsFlat;
 
-        // Draw
-        //gl.drawArrays(gl.POINTS, 0, 1);
-        var d = this.size / 200.0;
-        drawTriangle([xy[0], xy[1], xy[0] + d, xy[1], xy[0], xy[1] + d]);
+        // Store hardcoded triangle vertices in vertsFlat array
+        if (this.verts) {
+            const v = this.verts;
+            vertsFlat = new Float32Array([
+                v[0][0], v[0][1],
+                v[1][0], v[1][1],
+                v[2][0], v[2][1],
+            ]);
+        } else {
+            const x = this.position[0];
+            const y = this.position[1];
+            const d = this.size / 200.0;
+            vertsFlat = new Float32Array([
+                x, y + d,
+                x - d, y - d,
+                x + d, y - d,
+            ]);
+        }
 
+        const vertexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, vertsFlat, gl.DYNAMIC_DRAW);
+
+        gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(a_Position);
+
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+        gl.deleteBuffer(vertexBuffer);
     }
+
 }
 
 function drawTriangle(vertices) {

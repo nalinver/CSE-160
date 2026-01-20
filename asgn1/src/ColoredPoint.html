@@ -4,11 +4,21 @@
 <head>
     <meta charset="utf-8" />
     <title>Change a point color</title>
+    <style>
+        canvas {
+            display: inline-block;
+            margin: 5px;
+            border: 1px solid #ccc;
+        }
+    </style>
 </head>
 
 <body onload="main()">
     <canvas id="webgl" width="400" height="400">
         Please use a browser that supports "canvas"
+    </canvas>
+
+    <canvas id="referenceImageCanvas" width="400" height="400">
     </canvas>
 
     <p id='numdot'> numdot: -- ms: -- fps: -- </p>
@@ -57,6 +67,9 @@
         <script src="Triangle.js"></script>
         <script src="Circle.js"></script>
         <script src="ColoredPoints.js"></script>
+
+
+        </script>
 
 </body>
 
