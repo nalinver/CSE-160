@@ -40,6 +40,8 @@ function setUpWebGL() {
         console.log('Failed to get the rendering context for WebGL');
         return;
     }
+
+    gl.enable(gl.DEPTH_TEST);
 }
 
 function connectVariableGLSL() {
@@ -98,6 +100,8 @@ let g_selectedSegments = 10;      // default is 10
 let g_selectedSymmetry = 'off';   // default is off
 let g_symmetrySlices = 6;         // radial symmetry slice count
 let g_globalAngle = 0;            // camera angle
+let g_jointAngle = 0;            // joint angle
+let g_jointAngle2 = 0;            // joint angle 2
 function addActionsForHtmlUI() {
     // Color sliders
     document.getElementById('redSlide').addEventListener('mouseup', function () {
@@ -147,6 +151,18 @@ function addActionsForHtmlUI() {
     // Camera Angle slider
     document.getElementById('angleSlide').addEventListener('mousemove', function () {
         g_globalAngle = this.value;
+        renderAllShapes();
+    });
+
+    // Joint Slider slider
+    document.getElementById('jointSlider').addEventListener('mousemove', function () {
+        g_jointAngle = this.value;
+        renderAllShapes();
+    });
+
+    // Joint Slider 2 slider
+    document.getElementById('jointSlider2').addEventListener('mousemove', function () {
+        g_jointAngle2 = this.value;
         renderAllShapes();
     });
 
@@ -259,34 +275,45 @@ function renderAllShapes() {
 
     var startTime = performance.now();
 
+    // Pass the matrix to u_ModelMatrix attribute
+    var globalRotMatrix = new Matrix4().rotate(g_globalAngle, 0, 1, 0);
+    gl.uniformMatrix4fv(u_GlobalRotateMatrix, false, globalRotMatrix.elements);
+
     // Clear <canvas>
-    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    var globalRotateMatrix = new Matrix4();
-    globalRotateMatrix.rotate(g_globalAngle, 0, 1, 0);
-    gl.uniformMatrix4fv(u_GlobalRotateMatrix, false, globalRotateMatrix.elements);
-
-    // Set color and identity matrix before drawing triangle
-    gl.uniform4f(u_FragColor, 1.0, 1.0, 1.0, 1.0);
-    var identityMatrix = new Matrix4();
-    gl.uniformMatrix4fv(u_ModelMatrix, false, identityMatrix.elements);
-    drawTriangle3D([-1.0, 0.0, 0.0, -0.5, -1.0, 0.0, 0.0, 0.0, 0.0]);
-
+    // Draw the body cube
     var body = new Cube();
     body.color = [1.0, 0.0, 0.0, 1.0];
-    body.matrix.translate(-0.25, -0.5, 0.0);
-    body.matrix.scale(0.5, 1, 0.5);
+    body.matrix.translate(-0.25, -0.75, 0.0);
+    body.matrix.rotate(-5, 1, 0, 0);
+    body.matrix.scale(0.5, 0.3, 0.5);
     body.render();
 
+
+    // Draw the left arm cube
     var leftArm = new Cube();
     leftArm.color = [1.0, 1.0, 0.0, 1.0];
-    leftArm.matrix.translate(0.75, 0.0, 0.0);
-    leftArm.matrix.rotate(45, 0, 0, 1);
+    leftArm.matrix.setTranslate(0, -0.5, 0.0);
+    leftArm.matrix.rotate(-5, 1, 0, 0);
+    leftArm.matrix.rotate(-g_jointAngle, 0, 0, 1);
+    var yellowCoordinates = new Matrix4(leftArm.matrix);
     leftArm.matrix.scale(0.25, 0.7, 0.5);
+    leftArm.matrix.translate(-0.5, 0.0, 0.0);
     leftArm.render();
 
-    //var duration = performance.now() - startTime;
-    //sendTextToHtml('numdot: ' + len + ' ms: ' + Math.floor(duration) + ' fps: ' + Math.floor(10000 / duration), "numdot");
+    // test box
+    var box = new Cube();
+    box.color = [1.0, 0.0, 1.0, 1.0];
+    box.matrix = yellowCoordinates;
+    box.matrix.translate(0.0, 0.65, 0.0);
+    box.matrix.rotate(g_jointAngle2, 0, 0, 1);
+    box.matrix.scale(0.3, 0.3, 0.3);
+    box.matrix.translate(-0.5, 0, -0.001);
+    box.render();
+
+    var duration = performance.now() - startTime;
+    sendTextToHtml(' ms: ' + Math.floor(duration) + ' fps: ' + Math.floor(10000 / duration), "numdot");
 }
 
 
