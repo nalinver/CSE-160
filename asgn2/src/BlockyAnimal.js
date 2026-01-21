@@ -3,9 +3,10 @@
 var VSHADER_SOURCE = `
   attribute vec4 a_Position; 
   uniform float u_size; 
-  uniform float u_segments;
+  uniform mat4 u_ModelMatrix;
+  uniform mat4 u_GlobalRotateMatrix;
   void main() {
-    gl_Position = a_Position;
+    gl_Position = u_GlobalRotateMatrix * u_ModelMatrix * a_Position;
     gl_PointSize = u_size;
   }
 `;
@@ -26,7 +27,8 @@ let a_position;
 let u_FragColor;
 let u_size;
 let u_segments;
-
+let u_ModelMatrix;
+let u_GlobalRotateMatrix;
 function setUpWebGL() {
     // Retrieve <canvas> element
     canvas = document.getElementById('webgl');
@@ -68,6 +70,19 @@ function connectVariableGLSL() {
         return;
     }
 
+    // Get the storage location of u_ModelMatrix
+    u_ModelMatrix = gl.getUniformLocation(gl.program, 'u_ModelMatrix');
+    if (!u_ModelMatrix) {
+        console.log('Failed to get the storage location of u_ModelMatrix');
+        return;
+    }
+
+    // Get the storage location of u_GlobalRotateMatrix
+    u_GlobalRotateMatrix = gl.getUniformLocation(gl.program, 'u_GlobalRotateMatrix');
+    if (!u_GlobalRotateMatrix) {
+        console.log('Failed to get the storage location of u_GlobalRotateMatrix');
+        return;
+    }
 
 }
 // Shape type constants
@@ -82,6 +97,7 @@ let g_selectedType = POINT;       // default is POINT
 let g_selectedSegments = 10;      // default is 10
 let g_selectedSymmetry = 'off';   // default is off
 let g_symmetrySlices = 6;         // radial symmetry slice count
+let g_globalAngle = 0;            // camera angle
 function addActionsForHtmlUI() {
     // Color sliders
     document.getElementById('redSlide').addEventListener('mouseup', function () {
@@ -127,6 +143,12 @@ function addActionsForHtmlUI() {
     document.getElementById('drawPicture').onclick = function () {
         drawHardcodedTriangleImage();
     };
+
+    // Camera Angle slider
+    document.getElementById('angleSlide').addEventListener('mousemove', function () {
+        g_globalAngle = this.value;
+        renderAllShapes();
+    });
 
 }
 
@@ -240,23 +262,31 @@ function renderAllShapes() {
     // Clear <canvas>
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    //var len = g_points.length;
-    //var len = g_shapesList.length;
+    var globalRotateMatrix = new Matrix4();
+    globalRotateMatrix.rotate(g_globalAngle, 0, 1, 0);
+    gl.uniformMatrix4fv(u_GlobalRotateMatrix, false, globalRotateMatrix.elements);
 
-    //for (var i = 0; i < len; i++) {
-
-    //    g_shapesList[i].render();
-
-    //}
-
+    // Set color and identity matrix before drawing triangle
+    gl.uniform4f(u_FragColor, 1.0, 1.0, 1.0, 1.0);
+    var identityMatrix = new Matrix4();
+    gl.uniformMatrix4fv(u_ModelMatrix, false, identityMatrix.elements);
     drawTriangle3D([-1.0, 0.0, 0.0, -0.5, -1.0, 0.0, 0.0, 0.0, 0.0]);
 
     var body = new Cube();
     body.color = [1.0, 0.0, 0.0, 1.0];
+    body.matrix.translate(-0.25, -0.5, 0.0);
+    body.matrix.scale(0.5, 1, 0.5);
     body.render();
 
-    var duration = performance.now() - startTime;
-    sendTextToHtml('numdot: ' + len + ' ms: ' + Math.floor(duration) + ' fps: ' + Math.floor(10000 / duration), "numdot");
+    var leftArm = new Cube();
+    leftArm.color = [1.0, 1.0, 0.0, 1.0];
+    leftArm.matrix.translate(0.75, 0.0, 0.0);
+    leftArm.matrix.rotate(45, 0, 0, 1);
+    leftArm.matrix.scale(0.25, 0.7, 0.5);
+    leftArm.render();
+
+    //var duration = performance.now() - startTime;
+    //sendTextToHtml('numdot: ' + len + ' ms: ' + Math.floor(duration) + ' fps: ' + Math.floor(10000 / duration), "numdot");
 }
 
 
