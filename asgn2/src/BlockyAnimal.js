@@ -102,7 +102,9 @@ let g_symmetrySlices = 6;         // radial symmetry slice count
 let g_globalAngle = 0;            // camera angle
 let g_jointAngle = 0;            // joint angle
 let g_jointAngle2 = 0;            // joint angle 2
+let g_animation = false;          // animation flag
 function addActionsForHtmlUI() {
+    /*
     // Color sliders
     document.getElementById('redSlide').addEventListener('mouseup', function () {
         g_selectedColor[0] = this.value / 100;
@@ -147,6 +149,7 @@ function addActionsForHtmlUI() {
     document.getElementById('drawPicture').onclick = function () {
         drawHardcodedTriangleImage();
     };
+    */
 
     // Camera Angle slider
     document.getElementById('angleSlide').addEventListener('mousemove', function () {
@@ -160,11 +163,17 @@ function addActionsForHtmlUI() {
         renderAllShapes();
     });
 
+    /*
     // Joint Slider 2 slider
     document.getElementById('jointSlider2').addEventListener('mousemove', function () {
         g_jointAngle2 = this.value;
         renderAllShapes();
     });
+    */
+
+    // Animation button
+    document.getElementById('animationButtonON').onclick = function () { g_animation = true; }
+    document.getElementById('animationButtonOFF').onclick = function () { g_animation = false; }
 
 }
 
@@ -187,7 +196,22 @@ function main() {
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
 
     // Clear <canvas>
-    gl.clear(gl.COLOR_BUFFER_BIT);
+    //gl.clear(gl.COLOR_BUFFER_BIT);
+
+    requestAnimationFrame(tick);
+}
+
+var g_startTime = performance.now() / 1000;
+var g_seconds = performance.now() / 1000 - g_startTime;
+
+function tick() {
+    g_seconds = performance.now() / 1000 - g_startTime;
+    console.log(g_seconds);
+
+
+    renderAllShapes();
+
+    requestAnimationFrame(tick);
 }
 
 // globals for point attribute
@@ -271,6 +295,10 @@ function convertCoordinatesEventToGL(ev) {
     return ([x, y]);
 }
 
+
+
+
+
 function renderAllShapes() {
 
     var startTime = performance.now();
@@ -279,20 +307,160 @@ function renderAllShapes() {
     var globalRotMatrix = new Matrix4().rotate(g_globalAngle, 0, 1, 0);
     gl.uniformMatrix4fv(u_GlobalRotateMatrix, false, globalRotMatrix.elements);
 
-    // Clear <canvas>
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    // Draw the body cube
+    gl.enable(gl.DEPTH_TEST); // 1
+
+    // Clear <canvas>
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); // 1
+
+
+    // --- Blocky Eagle ---
+    var bodyBrown = [0.45, 0.3, 0.15, 1.0];
+    var headWhite = [0.95, 0.95, 0.9, 1.0];
+    var beakYellow = [0.9, 0.75, 0.1, 1.0];
+    var wingDark = [0.25, 0.2, 0.15, 1.0];
+    var legYellow = [0.85, 0.7, 0.2, 1.0];
+
+    var wingAngleL, wingAngleR, legSwingL, legSwingR;
+    if (g_animation) {
+        var wingFlap = 12 * Math.sin(g_seconds * 2);
+        wingAngleL = wingFlap;
+        wingAngleR = -wingFlap;
+        legSwingL = 18 * Math.sin(g_seconds * 2.5);
+        legSwingR = 18 * Math.sin(g_seconds * 2.5 + Math.PI);
+    } else {
+        wingAngleL = g_jointAngle;
+        wingAngleR = -g_jointAngle;
+        legSwingL = 0;
+        legSwingR = 0;
+    }
+
+    // 1) Body 
     var body = new Cube();
-    body.color = [1.0, 0.0, 0.0, 1.0];
-    body.matrix.translate(-0.25, -0.75, 0.0);
-    body.matrix.rotate(-5, 1, 0, 0);
-    body.matrix.scale(0.5, 0.3, 0.5);
+    body.color = bodyBrown;
+    body.matrix.translate(-0.12, -0.5, -0.15);
+    body.matrix.scale(0.35, 0.28, 0.3);
     body.render();
 
+    // 2) Tail feathers
+    var tail1 = new Cube();
+    tail1.color = bodyBrown;
+    tail1.matrix.translate(0.18, -0.48, -0.08);
+    tail1.matrix.rotate(-5, 0, 0, 1);
+    tail1.matrix.scale(0.12, 0.1, 0.2);
+    tail1.render();
+    var tail2 = new Cube();
+    tail2.color = bodyBrown;
+    tail2.matrix.translate(0.22, -0.52, 0);
+    tail2.matrix.rotate(-8, 0, 0, 1);
+    tail2.matrix.scale(0.1, 0.12, 0.18);
+    tail2.render();
+    var tail3 = new Cube();
+    tail3.color = bodyBrown;
+    tail3.matrix.translate(0.18, -0.48, 0.08);
+    tail3.matrix.rotate(-5, 0, 0, 1);
+    tail3.matrix.scale(0.12, 0.1, 0.2);
+    tail3.render();
+
+    // 3) Neck
+    var neck = new Cube();
+    neck.color = bodyBrown;
+    neck.matrix.translate(-0.2, -0.35, -0.06);
+    neck.matrix.scale(0.12, 0.2, 0.12);
+    neck.render();
+
+    // 4) Head
+    var head = new Cube();
+    head.color = headWhite;
+    head.matrix.translate(-0.28, -0.22, -0.08);
+    head.matrix.scale(0.18, 0.18, 0.16);
+    head.render();
+
+    // 4b) Eyes (on front of head)
+    var eyeColor = [0.1, 0.4, 0.05, 1.0];
+    var eyeL = new Cube();
+    eyeL.color = eyeColor;
+    eyeL.matrix.translate(-0.4, -0.1, -0.05);
+    eyeL.matrix.scale(0.04, 0.05, 0.04);
+    eyeL.render();
+    var eyeR = new Cube();
+    eyeR.color = eyeColor;
+    eyeR.matrix.translate(-0.36, -0.1, 0);
+    eyeR.matrix.scale(0.04, 0.05, 0.04);
+    eyeR.render();
+
+    // 5) Beak
+    var beak = new Cube();
+    beak.color = beakYellow;
+    beak.matrix.translate(-0.42, -0.2, -0.03);
+    beak.matrix.scale(0.12, 0.06, 0.06);
+    beak.render();
+
+    // 6) Left wing
+    var wingL1 = new Cube();
+    wingL1.color = wingDark;
+    wingL1.matrix.translate(-0.1, -0.42, 0.22);
+    wingL1.matrix.rotate(wingAngleL, 1, 0, 0);
+    wingL1.matrix.scale(0.25, 0.08, 0.2);
+    wingL1.render();
+    var wingL2 = new Cube();
+    wingL2.color = wingDark;
+    wingL2.matrix.translate(0.08, -0.44, 0.28);
+    wingL2.matrix.rotate(wingAngleL + (g_animation ? 5 : 0), 1, 0, 0);
+    wingL2.matrix.scale(0.2, 0.06, 0.15);
+    wingL2.render();
+
+    // 7) Right wing
+    var wingR1 = new Cube();
+    wingR1.color = wingDark;
+    wingR1.matrix.translate(-0.1, -0.42, -0.22);
+    wingR1.matrix.rotate(wingAngleR, 1, 0, 0);
+    wingR1.matrix.scale(0.25, 0.08, 0.2);
+    wingR1.render();
+    var wingR2 = new Cube();
+    wingR2.color = wingDark;
+    wingR2.matrix.translate(0.08, -0.44, -0.28);
+    wingR2.matrix.rotate(wingAngleR - (g_animation ? 5 : 0), 1, 0, 0);
+    wingR2.matrix.scale(0.2, 0.06, 0.15);
+    wingR2.render();
+
+    // 8) Legs and feet
+    var hipL = [-0.05, -0.62, 0.08];
+    var hipR = [-0.05, -0.62, -0.08];
+    var legHalfH = 0.09;
+    var legFullH = 0.18;
+
+    var legL = new Cube();
+    legL.color = legYellow;
+    legL.matrix.translate(hipL[0], hipL[1], hipL[2]);
+    legL.matrix.rotate(legSwingL, 0, 0, 1);
+    legL.matrix.translate(0, -legHalfH, 0);
+    legL.matrix.scale(0.06, 0.18, 0.06);
+    legL.render();
+    var legR = new Cube();
+    legR.color = legYellow;
+    legR.matrix.translate(hipR[0], hipR[1], hipR[2]);
+    legR.matrix.rotate(legSwingR, 0, 0, 1);
+    legR.matrix.translate(0, -legHalfH, 0);
+    legR.matrix.scale(0.06, 0.18, 0.06);
+    legR.render();
+    var footL = new Cube();
+    footL.color = legYellow;
+    footL.matrix.translate(hipL[0], hipL[1], hipL[2]);
+    footL.matrix.rotate(legSwingL, 0, 0, 1);
+    footL.matrix.translate(-0.01, legFullH + 0.02, 0);
+    footL.matrix.scale(0.08, 0.04, 0.12);
+    footL.render();
+    var footR = new Cube();
+    footR.color = legYellow;
+    footR.matrix.translate(hipR[0], hipR[1], hipR[2]);
+    footR.matrix.rotate(legSwingR, 0, 0, 1);
+    footR.matrix.translate(-0.01, legFullH + 0.02, 0);
+    footR.matrix.scale(0.08, 0.04, 0.12);
+    footR.render();
 
     // Draw the left arm cube
-    var leftArm = new Cube();
+    /*var leftArm = new Cube();
     leftArm.color = [1.0, 1.0, 0.0, 1.0];
     leftArm.matrix.setTranslate(0, -0.5, 0.0);
     leftArm.matrix.rotate(-5, 1, 0, 0);
@@ -300,17 +468,17 @@ function renderAllShapes() {
     var yellowCoordinates = new Matrix4(leftArm.matrix);
     leftArm.matrix.scale(0.25, 0.7, 0.5);
     leftArm.matrix.translate(-0.5, 0.0, 0.0);
-    leftArm.render();
+    leftArm.render();*/
 
     // test box
-    var box = new Cube();
+    /*var box = new Cube();
     box.color = [1.0, 0.0, 1.0, 1.0];
     box.matrix = yellowCoordinates;
     box.matrix.translate(0.0, 0.65, 0.0);
-    box.matrix.rotate(g_jointAngle2, 0, 0, 1);
+    box.matrix.rotate(-g_jointAngle2, 0, 0, 1);
     box.matrix.scale(0.3, 0.3, 0.3);
     box.matrix.translate(-0.5, 0, -0.001);
-    box.render();
+    box.render();*/
 
     var duration = performance.now() - startTime;
     sendTextToHtml(' ms: ' + Math.floor(duration) + ' fps: ' + Math.floor(10000 / duration), "numdot");

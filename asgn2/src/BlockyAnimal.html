@@ -20,6 +20,7 @@
 
     <p id='numdot'> numdot: -- ms: -- fps: -- </p>
 
+    <!--
     <p>
         <button type="button" id="clearButton">Clear</button>
 
@@ -56,15 +57,22 @@
 
     <p>
         <button type="button" id="drawPicture">Draw Picture</button>
+    -->
 
     <p>
-        Joint Slider <input type='range' min='-45' max='45' value=' 0' class='slider' id='jointSlider'>
+        Wing Flapper <input type='range' min='-45' max='45' value=' 0' class='slider' id='jointSlider'>
+        <!--
     <p>
         Joint Slider 2 <input type='range' min='-45' max='45' value=' 0' class='slider' id='jointSlider2'>
+    -->
 
     <p>
-        Camera Angle <input type='range' min='0' max='90' value='5' class='slider' id='angleSlide'>
+        Camera Angle <input type='range' min='-180' max='180' value='5' class='slider' id='angleSlide'>
 
+    <p>
+        Animation:
+        <button type="button" id="animationButtonON">ON</button>
+        <button type="button" id="animationButtonOFF">OFF</button>
 
 
         <script src="../lib/webgl-utils.js"></script>
@@ -72,9 +80,9 @@
         <script src="../lib/cuon-utils.js"></script>
         <script src="../lib/cuon_matrix.js"></script>
 
-        <script src="Point.js"></script>
+
         <script src="Triangle.js"></script>
-        <script src="Circle.js"></script>
+
         <script src="Cube.js"></script>
         <script src="BlockyAnimal.js"></script>
 
