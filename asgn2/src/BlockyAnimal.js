@@ -380,19 +380,19 @@ function renderAllShapes() {
     var eyeColor = [0.1, 0.4, 0.05, 1.0];
     var eyeL = new Cube();
     eyeL.color = eyeColor;
-    eyeL.matrix.translate(-0.4, -0.1, -0.05);
+    eyeL.matrix.translate(-0.3, -0.1, -0.05);
     eyeL.matrix.scale(0.04, 0.05, 0.04);
     eyeL.render();
     var eyeR = new Cube();
     eyeR.color = eyeColor;
-    eyeR.matrix.translate(-0.36, -0.1, 0);
+    eyeR.matrix.translate(-0.3, -0.1, 0);
     eyeR.matrix.scale(0.04, 0.05, 0.04);
     eyeR.render();
 
     // 5) Beak
     var beak = new Cube();
     beak.color = beakYellow;
-    beak.matrix.translate(-0.42, -0.2, -0.03);
+    beak.matrix.translate(-0.4, -0.2, -0.03);
     beak.matrix.scale(0.12, 0.06, 0.06);
     beak.render();
 
