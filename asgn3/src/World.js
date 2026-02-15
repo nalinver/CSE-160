@@ -1,21 +1,37 @@
-// ColoredPoint.js (c) 2012 matsuda
-// Simple shader programs for drawing colored points/shapes
 var VSHADER_SOURCE = `
   attribute vec4 a_Position; 
   uniform float u_size; 
+  attribute vec2 a_UV;
+  varying vec2 v_UV;
   uniform mat4 u_ModelMatrix;
   uniform mat4 u_GlobalRotateMatrix;
+  uniform mat4 u_viewMatrix;
+  uniform mat4 u_projectionMatrix;
   void main() {
-    gl_Position = u_GlobalRotateMatrix * u_ModelMatrix * a_Position;
+    gl_Position = u_projectionMatrix * u_viewMatrix * u_GlobalRotateMatrix * u_ModelMatrix * a_Position;
     gl_PointSize = u_size;
+    v_UV = a_UV;
   }
 `;
 
 var FSHADER_SOURCE = `
   precision mediump float;
   uniform vec4 u_FragColor;
+  varying vec2 v_UV;
+  uniform sampler2D u_Sampler0;
+  uniform int u_whichTexture;
   void main() {
-    gl_FragColor = u_FragColor;
+
+    if (u_whichTexture == -2) {
+        gl_FragColor = u_FragColor;
+    } else if (u_whichTexture == -1) {
+        gl_FragColor = vec4(v_UV, 1.0, 1.0);
+    } else if (u_whichTexture == 0) {
+        gl_FragColor = texture2D(u_Sampler0, v_UV);
+    } else {
+        gl_FragColor = vec4(1, 0.2, 0.2, 1.0);         
+    }
+
   }
 `;
 
@@ -29,6 +45,10 @@ let u_size;
 let u_segments;
 let u_ModelMatrix;
 let u_GlobalRotateMatrix;
+let a_UV;
+let u_Sampler0;
+let u_whichTexture;
+
 function setUpWebGL() {
     // Retrieve <canvas> element
     canvas = document.getElementById('webgl');
@@ -55,6 +75,13 @@ function connectVariableGLSL() {
     a_Position = gl.getAttribLocation(gl.program, 'a_Position');
     if (a_Position < 0) {
         console.log('Failed to get the storage location of a_Position');
+        return;
+    }
+
+    // Get the storage location of a_UV
+    a_UV = gl.getAttribLocation(gl.program, 'a_UV');
+    if (a_UV < 0) {
+        console.log('Failed to get the storage location of a_UV');
         return;
     }
 
@@ -86,7 +113,85 @@ function connectVariableGLSL() {
         return;
     }
 
+    // Get the storage location of u_Sampler0
+    u_Sampler0 = gl.getUniformLocation(gl.program, 'u_Sampler0');
+    if (!u_Sampler0) {
+        console.log('Failed to get the storage location of u_Sampler0');
+        return;
+    }
+
+    // Get the storage location of u_whichTexture
+    u_whichTexture = gl.getUniformLocation(gl.program, 'u_whichTexture');
+    if (!u_whichTexture) {
+        console.log('Failed to get the storage location of u_whichTexture');
+        return;
+    }
+
+    // Get the storage location of u_viewMatrix
+    u_viewMatrix = gl.getUniformLocation(gl.program, 'u_viewMatrix');
+    if (!u_viewMatrix) {
+        console.log('Failed to get the storage location of u_viewMatrix');
+        return;
+    }
+
+    // Get the storage location of u_projectionMatrix
+    u_projectionMatrix = gl.getUniformLocation(gl.program, 'u_projectionMatrix');
+    if (!u_projectionMatrix) {
+        console.log('Failed to get the storage location of u_projectionMatrix');
+        return;
+    }
+
 }
+
+function initTextures(gl, n) {
+
+
+
+    var image = new Image();  // Create the image object
+    if (!image) {
+        console.log('Failed to create the image object');
+        return false;
+    }
+    // Register the event handler to be called on loading an image
+    image.onload = function () { sendTextureToGLSL(image); };
+    // Tell the browser to load an image
+    image.src = 'sky.jpg';
+
+    return true;
+}
+
+function sendTextureToGLSL(image) {
+
+    var texture = gl.createTexture();   // Create a texture object
+    if (!texture) {
+        console.log('Failed to create the texture object');
+        return false;
+    }
+
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1); // Flip the image's y axis
+    // Enable texture unit0
+    gl.activeTexture(gl.TEXTURE0);
+    // Bind the texture object to the target
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+
+    // Set the texture parameters
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    // Set the texture image
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
+
+    // Set the texture unit 0 to the sampler
+    gl.uniform1i(u_Sampler0, 0);
+
+    //gl.clear(gl.COLOR_BUFFER_BIT);   // Clear <canvas>
+
+    //gl.drawArrays(gl.TRIANGLE_STRIP, 0, n); // Draw the rectangle
+
+    console.log('Finished sending texture to GLSL');
+}
+
+
+
+
 // Shape type constants
 const POINT = 0;
 const TRIANGLE = 1;
@@ -100,62 +205,11 @@ let g_selectedSegments = 10;      // default is 10
 let g_selectedSymmetry = 'off';   // default is off
 let g_symmetrySlices = 6;         // radial symmetry slice count
 let g_globalAngle = 0;            // camera angle
+let g_prevMouseX = -1;            // for mouse-drag camera
 let g_jointAngle = 0;            // joint angle
 let g_jointAngle2 = 0;            // joint angle 2
 let g_animation = false;          // animation flag
 function addActionsForHtmlUI() {
-    /*
-    // Color sliders
-    document.getElementById('redSlide').addEventListener('mouseup', function () {
-        g_selectedColor[0] = this.value / 100;
-    });
-    document.getElementById('greenSlide').addEventListener('mouseup', function () {
-        g_selectedColor[1] = this.value / 100;
-    });
-    document.getElementById('blueSlide').addEventListener('mouseup', function () {
-        g_selectedColor[2] = this.value / 100;
-    });
-
-    // Point size slider
-    document.getElementById('pointSize').addEventListener('mouseup', function () {
-        g_selectedSize = this.value;
-    });
-
-    // Circle segment count
-    document.getElementById('segmentCount').addEventListener('mouseup', function () {
-        g_selectedSegments = parseInt(this.value);
-    });
-
-    // Clear canvas button
-    document.getElementById('clearButton').onclick = function () {
-        g_shapesList = [];
-        renderAllShapes();
-    };
-
-    // Shape type buttons
-    document.getElementById('point').onclick = function () { g_selectedType = POINT; };
-    document.getElementById('triangle').onclick = function () { g_selectedType = TRIANGLE; };
-    document.getElementById('circle').onclick = function () { g_selectedType = CIRCLE; };
-
-    // Symmetry controls
-    document.getElementById('symmetry').addEventListener('change', function () {
-        g_selectedSymmetry = this.value;
-    });
-    document.getElementById('radialSlices').addEventListener('input', function () {
-        g_symmetrySlices = Math.max(2, parseInt(this.value));
-    });
-
-    // Draw Picture button
-    document.getElementById('drawPicture').onclick = function () {
-        drawHardcodedTriangleImage();
-    };
-    */
-
-    // Camera Angle slider
-    document.getElementById('angleSlide').addEventListener('mousemove', function () {
-        g_globalAngle = this.value;
-        renderAllShapes();
-    });
 
     // Joint Slider slider
     document.getElementById('jointSlider').addEventListener('mousemove', function () {
@@ -163,13 +217,7 @@ function addActionsForHtmlUI() {
         renderAllShapes();
     });
 
-    /*
-    // Joint Slider 2 slider
-    document.getElementById('jointSlider2').addEventListener('mousemove', function () {
-        g_jointAngle2 = this.value;
-        renderAllShapes();
-    });
-    */
+
 
     // Animation button
     document.getElementById('animationButtonON').onclick = function () { g_animation = true; }
@@ -185,12 +233,12 @@ function main() {
     // Set up actions for buttons and sliders
     addActionsForHtmlUI();
 
-    // Draw while mouse is held down and moved
-    canvas.onmousemove = function (ev) {
-        if (ev.buttons === 1) {
-            click(ev);
-        }
-    };
+
+
+    document.onmousemove = mousemove;
+    document.onkeydown = keydown;
+
+    initTextures(gl, 0);
 
     // Specify the color for clearing <canvas>
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -206,12 +254,36 @@ var g_seconds = performance.now() / 1000 - g_startTime;
 
 function tick() {
     g_seconds = performance.now() / 1000 - g_startTime;
-    console.log(g_seconds);
+    //console.log(g_seconds);
 
 
     renderAllShapes();
 
     requestAnimationFrame(tick);
+}
+
+function mousemove(ev) {
+    // Draw while left mouse is held down and moved
+    canvas.onmousemove = function (ev) {
+        if (ev.buttons === 1) {
+            click(ev);
+        }
+        // Right-mouse drag for camera orbit
+        if (ev.buttons === 2) {
+            var rect = ev.target.getBoundingClientRect();
+            var mouseX = ev.clientX - rect.left;
+            if (g_prevMouseX >= 0) {
+                var deltaX = mouseX - g_prevMouseX;
+                g_globalAngle += deltaX * 0.5;  // sensitivity
+            }
+            g_prevMouseX = mouseX;
+        }
+    };
+    canvas.onmouseup = canvas.onmouseleave = function () {
+        g_prevMouseX = -1;
+    };
+    canvas.oncontextmenu = function (ev) { ev.preventDefault(); };  // no right-click menu
+
 }
 
 // globals for point attribute
@@ -247,42 +319,6 @@ function buildShapeAt(x, y) {
     return shape;
 }
 
-// Create the same shape at a different specified position {{EXTRAS}}
-function cloneShape(shapeTemplate, x, y) {
-    // Reuse the builder to keep config consistent
-    const clone = buildShapeAt(x, y);
-    // Ensure size/color mirror the original in case sliders change mid-drag
-    clone.color = shapeTemplate.color.slice();
-    clone.size = shapeTemplate.size;
-    if (clone.segments !== undefined && shapeTemplate.segments !== undefined) {
-        clone.segments = shapeTemplate.segments;
-    }
-    return clone;
-}
-
-// Depending on the action selected perform the symmetry operation {{EXTRAS}}
-function createSymmetricCopies(baseShape, x, y) {
-    if (g_selectedSymmetry === 'off') return [];
-
-    const copies = [];
-
-
-    if (g_selectedSymmetry === 'vertical') {
-        copies.push(cloneShape(baseShape, -x, y)); // mirror the shape across the vertical axis
-    } else if (g_selectedSymmetry === 'horizontal') {
-        copies.push(cloneShape(baseShape, x, -y)); // mirror the shape across the horizontal axis
-    } else if (g_selectedSymmetry === 'radial') {
-        const slices = Math.max(2, Math.floor(g_symmetrySlices)); // number of slices to create
-        const step = (2 * Math.PI) / slices;
-        for (let i = 1; i < slices; i++) {
-            const angle = step * i;
-            const rx = x * Math.cos(angle) - y * Math.sin(angle);
-            const ry = x * Math.sin(angle) + y * Math.cos(angle);
-            copies.push(cloneShape(baseShape, rx, ry));
-        }
-    }
-    return copies;
-}
 
 function convertCoordinatesEventToGL(ev) {
     var x = ev.clientX; // x coordinate of a mouse pointer
@@ -295,13 +331,66 @@ function convertCoordinatesEventToGL(ev) {
     return ([x, y]);
 }
 
+function keydown(ev) {
+    if (ev.key === 'w') {
+        g_eye[2] -= 0.1;
+    }
+    if (ev.key === 's') {
+        g_eye[2] += 0.1;
+    }
+    if (ev.key === 'a') {
+        g_eye[0] -= 0.1;
+    }
+    if (ev.key === 'd') {
+        g_eye[0] += 0.1;
+    }
 
+}
 
+var g_eye = [0, 0, 1.5];
+var g_at = [0, 0, -100];
+var g_up = [0, 1, 0];
 
+var g_map = [
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 1, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+];
+
+function drawMap() {
+    for (x = 0; x < 32; x++) {
+        for (y = 0; y < 32; y++) {
+            if (x < 1 || x == 31 || y < 1 || y == 31) {
+                var block = new Cube();
+                block.color = [1, 1, 1, 1.0];
+                block.matrix.translate(0, -1, 0);
+                block.matrix.scale(0.4, 1, 0.4);
+                block.matrix.translate(x - 16, 0, y - 16);
+                block.renderfast();
+            }
+        }
+    }
+}
 
 function renderAllShapes() {
 
     var startTime = performance.now();
+
+    // Pass the matrix to ProjectionMatrix
+    var projMat = new Matrix4();
+    projMat.setPerspective(90, canvas.width / canvas.height, 0.1, 100.0);
+    gl.uniformMatrix4fv(u_projectionMatrix, false, projMat.elements);
+
+
+    // Pass the matrix to ViewMatrix
+    var viewMat = new Matrix4();
+    viewMat.setLookAt(g_eye[0], g_eye[1], g_eye[2], g_at[0], g_at[1], g_at[2], g_up[0], g_up[1], g_up[2]);
+    gl.uniformMatrix4fv(u_viewMatrix, false, viewMat.elements);
 
     // Pass the matrix to u_ModelMatrix attribute
     var globalRotMatrix = new Matrix4().rotate(g_globalAngle, 0, 1, 0);
@@ -312,6 +401,28 @@ function renderAllShapes() {
 
     // Clear <canvas>
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); // 1
+
+
+    // Draw the map
+    drawMap();
+
+    // Draw the floor
+    var floor = new Cube();
+    floor.color = [0.5, 0.5, 0.5, 1.0];
+    floor.textureNum = -2;
+    floor.matrix.translate(0, -0.75, 0);
+    floor.matrix.scale(10, 0.0, 10);
+    floor.matrix.translate(-0.5, 11, -0.5);
+    floor.render();
+
+    // Draw the sky
+    var sky = new Cube();
+    sky.color = [1, 0, 0, 1.0];
+    sky.textureNum = 0;
+    sky.matrix.translate(0, 0.75, 0);
+    sky.matrix.scale(10, 0.0, 10);
+    sky.matrix.translate(-0.5, 11, -0.5);
+    sky.render();
 
 
     // --- Blocky Eagle ---
@@ -372,6 +483,7 @@ function renderAllShapes() {
     // 4) Head
     var head = new Cube();
     head.color = headWhite;
+    head.textureNum = 0;
     head.matrix.translate(-0.28, -0.22, -0.08);
     head.matrix.scale(0.18, 0.18, 0.16);
     head.render();
@@ -483,6 +595,8 @@ function renderAllShapes() {
     var duration = performance.now() - startTime;
     sendTextToHtml(' ms: ' + Math.floor(duration) + ' fps: ' + Math.floor(10000 / duration), "numdot");
 }
+
+
 
 
 // Set the text of a HTML element
