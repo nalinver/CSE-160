@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Change a point color</title>
+    <style>
+        canvas {
+            display: inline-block;
+            margin: 5px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+
+<body onload="main()">
+    <canvas id="webgl" width="400" height="400">
+        Please use a browser that supports "canvas"
+    </canvas>
+
+    <p id='numdot'> numdot: -- ms: -- fps: -- </p>
+
+    <!--
+    <p>
+        <button type="button" id="clearButton">Clear</button>
+
+    <p>
+        <button type="Point" id="point">Point</button>
+        <button type="Triangle" id="triangle">Triangle</button>
+        <button type="Circle" id="circle">Circle</button>
+
+
+
+    <p>
+        Red <input type='range' min='0' max='100' value='100' class='slider' id='redSlide'>
+    <p>
+        Green <input type='range' min='0' max='100' value='100' class='slider' id='greenSlide'>
+    <p>
+        Blue <input type='range' min='0' max='100' value='100' class='slider' id='blueSlide'>
+
+    <p>
+        Size <input type='range' min='5' max='40' value='5' class='slider' id='pointSize'>
+
+    <p>
+        Segments <input type='range' min='3' max='50' value='10' class='slider' id='segmentCount'>
+
+    <p>
+        Symmetry
+        <select name="symmetry" id="symmetry" style="display: inline-block; margin-right: 10px;">
+            <option value="off">off</option>
+            <option value="vertical">vertical</option>
+            <option value="horizontal">horizontal</option>
+            <option value="radial">radial</option>
+        </select>
+        Radial slices
+        <input type='range' min='2' max='16' value='6' class='slider' id='radialSlices'>
+
+    <p>
+        <button type="button" id="drawPicture">Draw Picture</button>
+    -->
+
+    <p>
+        Wing Flapper <input type='range' min='-45' max='45' value=' 0' class='slider' id='jointSlider'>
+        <!--
+    <p>
+        Joint Slider 2 <input type='range' min='-45' max='45' value=' 0' class='slider' id='jointSlider2'>
+    -->
+
+    <p>
+        Camera Angle <input type='range' min='-180' max='180' value='5' class='slider' id='angleSlide'>
+
+    <p>
+        Animation:
+        <button type="button" id="animationButtonON">ON</button>
+        <button type="button" id="animationButtonOFF">OFF</button>
+
+
+        <script src="../lib/webgl-utils.js"></script>
+        <script src="../lib/webgl-debug.js"></script>
+        <script src="../lib/cuon-utils.js"></script>
+        <script src="../lib/cuon_matrix.js"></script>
+
+
+        <script src="Triangle.js"></script>
+
+        <script src="Cube.js"></script>
+        <script src="BlockyAnimal.js"></script>
+
+
+        </script>
+
+</body>
+
+</html>
