@@ -19,6 +19,7 @@ var FSHADER_SOURCE = `
   uniform vec4 u_FragColor;
   varying vec2 v_UV;
   uniform sampler2D u_Sampler0;
+  uniform sampler2D u_Sampler1;
   uniform int u_whichTexture;
   void main() {
 
@@ -28,6 +29,8 @@ var FSHADER_SOURCE = `
         gl_FragColor = vec4(v_UV, 1.0, 1.0);
     } else if (u_whichTexture == 0) {
         gl_FragColor = texture2D(u_Sampler0, v_UV);
+    } else if (u_whichTexture == 1) {
+        gl_FragColor = texture2D(u_Sampler1, v_UV);
     } else {
         gl_FragColor = vec4(1, 0.2, 0.2, 1.0);         
     }
@@ -47,6 +50,7 @@ let u_ModelMatrix;
 let u_GlobalRotateMatrix;
 let a_UV;
 let u_Sampler0;
+let u_Sampler1;
 let u_whichTexture;
 
 function setUpWebGL() {
@@ -120,6 +124,13 @@ function connectVariableGLSL() {
         return;
     }
 
+    // Get the storage location of u_Sampler1
+    u_Sampler1 = gl.getUniformLocation(gl.program, 'u_Sampler1');
+    if (!u_Sampler1) {
+        console.log('Failed to get the storage location of u_Sampler1');
+        return;
+    }
+
     // Get the storage location of u_whichTexture
     u_whichTexture = gl.getUniformLocation(gl.program, 'u_whichTexture');
     if (!u_whichTexture) {
@@ -143,22 +154,39 @@ function connectVariableGLSL() {
 
 }
 
-function initTextures(gl, n) {
 
 
 
-    var image = new Image();  // Create the image object
-    if (!image) {
-        console.log('Failed to create the image object');
-        return false;
-    }
-    // Register the event handler to be called on loading an image
-    image.onload = function () { sendTextureToGLSL(image); };
-    // Tell the browser to load an image
-    image.src = 'sky.jpg';
-
-    return true;
+function initTextures() {
+    loadTexture('hedges.jpg', 0);
+    loadTexture('sky.jpg', 1);
 }
+
+function loadTexture(src, texUnit) {
+    let image = new Image();
+    image.onload = function () {
+        let texture = gl.createTexture();
+
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+        gl.activeTexture(gl.TEXTURE0 + texUnit);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texImage2D(
+            gl.TEXTURE_2D,
+            0,
+            gl.RGB,
+            gl.RGB,
+            gl.UNSIGNED_BYTE,
+            image
+        );
+
+        if (texUnit === 0) gl.uniform1i(u_Sampler0, 0);
+        if (texUnit === 1) gl.uniform1i(u_Sampler1, 1);
+    };
+    image.src = src;
+}
+
 
 function sendTextureToGLSL(image) {
 
@@ -226,16 +254,20 @@ function addActionsForHtmlUI() {
 }
 
 
+var camera;
+
 function main() {
     setUpWebGL();
     connectVariableGLSL();
+
+    camera = new Camera();
 
     // Set up actions for buttons and sliders
     addActionsForHtmlUI();
 
 
 
-    document.onmousemove = mousemove;
+    setupMouseHandlers();
     document.onkeydown = keydown;
 
     initTextures(gl, 0);
@@ -262,28 +294,28 @@ function tick() {
     requestAnimationFrame(tick);
 }
 
-function mousemove(ev) {
-    // Draw while left mouse is held down and moved
+function onMove(ev) {
+    var rect = canvas.getBoundingClientRect();
+    var mouseX = ev.clientX - rect.left;
+    if (g_prevMouseX >= 0) {
+        var deltaX = mouseX - g_prevMouseX;
+        var sensitivity = 0.5;
+        var alpha = deltaX * sensitivity;
+        if (alpha > 0) camera.panRight(alpha);
+        else if (alpha < 0) camera.panLeft(-alpha);
+    }
+    g_prevMouseX = mouseX;
+}
+
+function setupMouseHandlers() {
     canvas.onmousemove = function (ev) {
-        if (ev.buttons === 1) {
-            click(ev);
-        }
-        // Right-mouse drag for camera orbit
-        if (ev.buttons === 2) {
-            var rect = ev.target.getBoundingClientRect();
-            var mouseX = ev.clientX - rect.left;
-            if (g_prevMouseX >= 0) {
-                var deltaX = mouseX - g_prevMouseX;
-                g_globalAngle += deltaX * 0.5;  // sensitivity
-            }
-            g_prevMouseX = mouseX;
-        }
+        if (ev.buttons === 1) click(ev);
+        onMove(ev);
     };
-    canvas.onmouseup = canvas.onmouseleave = function () {
+    canvas.onmouseleave = function () {
         g_prevMouseX = -1;
     };
-    canvas.oncontextmenu = function (ev) { ev.preventDefault(); };  // no right-click menu
-
+    canvas.oncontextmenu = function (ev) { ev.preventDefault(); };
 }
 
 // globals for point attribute
@@ -332,35 +364,84 @@ function convertCoordinatesEventToGL(ev) {
 }
 
 function keydown(ev) {
-    if (ev.key === 'w') {
-        g_eye[2] -= 0.1;
+    var speed = 0.1;
+    if (ev.key === 'w' || ev.key === 'W') {
+        camera.moveForward(speed);
     }
-    if (ev.key === 's') {
-        g_eye[2] += 0.1;
+    if (ev.key === 's' || ev.key === 'S') {
+        camera.moveBackwards(speed);
     }
-    if (ev.key === 'a') {
-        g_eye[0] -= 0.1;
+    if (ev.key === 'a' || ev.key === 'A') {
+        camera.moveLeft(speed);
     }
-    if (ev.key === 'd') {
-        g_eye[0] += 0.1;
+    if (ev.key === 'd' || ev.key === 'D') {
+        camera.moveRight(speed);
     }
-
+    if (ev.key === 'q' || ev.key === 'Q') {
+        camera.panLeft();
+    }
+    if (ev.key === 'e' || ev.key === 'E') {
+        camera.panRight();
+    }
 }
 
-var g_eye = [0, 0, 1.5];
-var g_at = [0, 0, -100];
-var g_up = [0, 1, 0];
 
-var g_map = [
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 1, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-];
+// *** cursor defined here ***
+// Generate a maze with recursive backtracking. 1 = wall, 0 = path.
+// cellRows/cellCols = number of "rooms"; grid size is (2*cellRows+1) x (2*cellCols+1).
+function generateMaze(cellRows, cellCols) {
+    var rows = 2 * cellRows + 1;
+    var cols = 2 * cellCols + 1;
+    var grid = [];
+    for (var i = 0; i < rows; i++) {
+        grid[i] = [];
+        for (var j = 0; j < cols; j++) grid[i][j] = 1;
+    }
+    function carve(r, c) {
+        grid[r][c] = 0;
+        var dirs = [[0, -2], [0, 2], [-2, 0], [2, 0]];
+        for (var i = dirs.length - 1; i > 0; i--) {
+            var j = Math.floor(Math.random() * (i + 1));
+            var t = dirs[i]; dirs[i] = dirs[j]; dirs[j] = t;
+        }
+        for (var d = 0; d < 4; d++) {
+            var nr = r + dirs[d][0], nc = c + dirs[d][1];
+            if (nr >= 1 && nr < rows - 1 && nc >= 1 && nc < cols - 1 && grid[nr][nc] === 1) {
+                grid[r + dirs[d][0] / 2][c + dirs[d][1] / 2] = 0;
+                carve(nr, nc);
+            }
+        }
+    }
+    carve(1, 1);
+    return grid;
+}
+
+var g_map = generateMaze(12, 12);
+
+var g_mazeCellSize = 1.2;
+
+// used cursor to generate maze 
+function drawMaze() {
+    var rows = g_map.length;
+    var cols = g_map[0].length;
+    var halfR = (rows - 1) / 2, halfC = (cols - 1) / 2;
+    var s = g_mazeCellSize;
+    for (var x = 0; x < rows; x++) {
+        for (var y = 0; y < cols; y++) {
+            if (g_map[x][y] === 1) {
+                var block = new Cube();
+                block.color = [0.2, 0.2, 1, 1.0];
+                block.textureNum = 0;
+                block.matrix.translate(0, -1, 0);
+                block.matrix.scale(0.4, 1, 0.4);
+                block.matrix.translate((y - halfC) * s, 0.5, (x - halfR) * s);
+                block.renderfast();
+            }
+        }
+    }
+}
+
+
 
 function drawMap() {
     for (x = 0; x < 32; x++) {
@@ -382,15 +463,10 @@ function renderAllShapes() {
     var startTime = performance.now();
 
     // Pass the matrix to ProjectionMatrix
-    var projMat = new Matrix4();
-    projMat.setPerspective(90, canvas.width / canvas.height, 0.1, 100.0);
-    gl.uniformMatrix4fv(u_projectionMatrix, false, projMat.elements);
-
+    gl.uniformMatrix4fv(u_projectionMatrix, false, camera.projectionMatrix.elements);
 
     // Pass the matrix to ViewMatrix
-    var viewMat = new Matrix4();
-    viewMat.setLookAt(g_eye[0], g_eye[1], g_eye[2], g_at[0], g_at[1], g_at[2], g_up[0], g_up[1], g_up[2]);
-    gl.uniformMatrix4fv(u_viewMatrix, false, viewMat.elements);
+    gl.uniformMatrix4fv(u_viewMatrix, false, camera.viewMatrix.elements);
 
     // Pass the matrix to u_ModelMatrix attribute
     var globalRotMatrix = new Matrix4().rotate(g_globalAngle, 0, 1, 0);
@@ -403,26 +479,26 @@ function renderAllShapes() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); // 1
 
 
+    var sky = new Cube();
+    sky.color = [0.5, 0.5, 2, 1.0];
+    sky.textureNum = 1;
+    sky.matrix.translate(-55.12, -1, -55.12);
+    sky.matrix.scale(500, 500, 500);
+    sky.render();
+
+
     // Draw the map
     drawMap();
+    drawMaze();
 
     // Draw the floor
     var floor = new Cube();
     floor.color = [0.5, 0.5, 0.5, 1.0];
-    floor.textureNum = -2;
+    floor.textureNum = 0;
     floor.matrix.translate(0, -0.75, 0);
     floor.matrix.scale(10, 0.0, 10);
     floor.matrix.translate(-0.5, 11, -0.5);
     floor.render();
-
-    // Draw the sky
-    var sky = new Cube();
-    sky.color = [1, 0, 0, 1.0];
-    sky.textureNum = 0;
-    sky.matrix.translate(0, 0.75, 0);
-    sky.matrix.scale(10, 0.0, 10);
-    sky.matrix.translate(-0.5, 11, -0.5);
-    sky.render();
 
 
     // --- Blocky Eagle ---
@@ -483,7 +559,7 @@ function renderAllShapes() {
     // 4) Head
     var head = new Cube();
     head.color = headWhite;
-    head.textureNum = 0;
+    //head.textureNum = 0;
     head.matrix.translate(-0.28, -0.22, -0.08);
     head.matrix.scale(0.18, 0.18, 0.16);
     head.render();
@@ -570,27 +646,6 @@ function renderAllShapes() {
     footR.matrix.translate(-0.01, legFullH + 0.02, 0);
     footR.matrix.scale(0.08, 0.04, 0.12);
     footR.render();
-
-    // Draw the left arm cube
-    /*var leftArm = new Cube();
-    leftArm.color = [1.0, 1.0, 0.0, 1.0];
-    leftArm.matrix.setTranslate(0, -0.5, 0.0);
-    leftArm.matrix.rotate(-5, 1, 0, 0);
-    leftArm.matrix.rotate(-g_jointAngle, 0, 0, 1);
-    var yellowCoordinates = new Matrix4(leftArm.matrix);
-    leftArm.matrix.scale(0.25, 0.7, 0.5);
-    leftArm.matrix.translate(-0.5, 0.0, 0.0);
-    leftArm.render();*/
-
-    // test box
-    /*var box = new Cube();
-    box.color = [1.0, 0.0, 1.0, 1.0];
-    box.matrix = yellowCoordinates;
-    box.matrix.translate(0.0, 0.65, 0.0);
-    box.matrix.rotate(-g_jointAngle2, 0, 0, 1);
-    box.matrix.scale(0.3, 0.3, 0.3);
-    box.matrix.translate(-0.5, 0, -0.001);
-    box.render();*/
 
     var duration = performance.now() - startTime;
     sendTextToHtml(' ms: ' + Math.floor(duration) + ' fps: ' + Math.floor(10000 / duration), "numdot");
