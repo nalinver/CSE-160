@@ -7,6 +7,7 @@ var VSHADER_SOURCE = `
   varying vec3 v_Normal;
   varying vec4 v_VertPos;
   uniform mat4 u_ModelMatrix;
+  uniform mat4 u_NormalMatrix;
   uniform mat4 u_GlobalRotateMatrix;
   uniform mat4 u_viewMatrix;
   uniform mat4 u_projectionMatrix;
@@ -14,6 +15,7 @@ var VSHADER_SOURCE = `
     gl_Position = u_projectionMatrix * u_viewMatrix * u_GlobalRotateMatrix * u_ModelMatrix * a_Position;
     gl_PointSize = u_size;
     v_UV = a_UV;
+    v_Normal = normalize(vec3(u_NormalMatrix * vec4(a_Normal, 1.0)));
     v_Normal = a_Normal;
     v_VertPos = u_ModelMatrix * a_Position;
   }
@@ -31,6 +33,7 @@ var FSHADER_SOURCE = `
   uniform int u_whichTexture;
   uniform vec3 u_cameraPos;
   uniform bool u_lightOn;
+  uniform vec3 u_lightColor;
   void main() {
 
     if (u_whichTexture == -3) {
@@ -85,9 +88,9 @@ var FSHADER_SOURCE = `
     }
 
     vec3 baseColor = vec3(gl_FragColor);
-    vec3 diffuse = baseColor * NdotL * 0.7;
+    vec3 diffuse = baseColor * NdotL * 0.7 * u_lightColor;
     vec3 ambient = baseColor * 0.3;
-    vec3 result = diffuse + ambient + specular;
+    vec3 result = diffuse + ambient + specular * u_lightColor;
     
     if (u_lightOn) {
         gl_FragColor = vec4(result, 1.0);
@@ -117,6 +120,7 @@ let u_Sampler1;
 let u_whichTexture;
 let u_lightPos;
 let u_lightOn;
+let u_lightColor;
 function setUpWebGL() {
     // Retrieve <canvas> element
     canvas = document.getElementById('webgl');
@@ -244,6 +248,13 @@ function connectVariableGLSL() {
         return;
     }
 
+    // Get the storage location of u_lightColor
+    u_lightColor = gl.getUniformLocation(gl.program, 'u_lightColor');
+    if (!u_lightColor) {
+        console.log('Failed to get the storage location of u_lightColor');
+        return;
+    }
+
 
 }
 
@@ -329,6 +340,7 @@ let g_normal = false;            // normal flag
 let g_LightPos = [0, 1, -2];
 let g_lightOn = true;
 let g_lightAnimation = false;
+let g_lightColor = [1.0, 1.0, 0.0];
 function addActionsForHtmlUI() {
 
     // Joint Slider slider
@@ -356,6 +368,20 @@ function addActionsForHtmlUI() {
 
     // Light Animation button
     document.getElementById('lightAnimation').onclick = function () { g_lightAnimation = !g_lightAnimation; }
+
+    // Light color sliders
+    document.getElementById('lightR').addEventListener('input', function () {
+        g_lightColor[0] = this.value / 255;
+        renderAllShapes();
+    });
+    document.getElementById('lightG').addEventListener('input', function () {
+        g_lightColor[1] = this.value / 255;
+        renderAllShapes();
+    });
+    document.getElementById('lightB').addEventListener('input', function () {
+        g_lightColor[2] = this.value / 255;
+        renderAllShapes();
+    });
 
 }
 
@@ -847,6 +873,9 @@ function renderAllShapes() {
     // Pass the light position to GLSL
     gl.uniform3f(u_lightPos, g_LightPos[0], g_LightPos[1], g_LightPos[2]);
 
+    // Pass the light color to GLSL
+    gl.uniform3f(u_lightColor, g_lightColor[0], g_lightColor[1], g_lightColor[2]);
+
     // Pass the camera position to GLSL
     gl.uniform3f(u_cameraPos, camera.eye.elements[0], camera.eye.elements[1], camera.eye.elements[2]);
 
@@ -855,7 +884,7 @@ function renderAllShapes() {
 
     // Draw the light
     var light = new Cube();
-    light.color = [2, 2, 0, 1.0];
+    light.color = [g_lightColor[0] * 2.0, g_lightColor[1] * 2.0, g_lightColor[2] * 2.0, 1.0];
     light.matrix.translate(g_LightPos[0], g_LightPos[1], g_LightPos[2]);
     light.matrix.scale(-0.1, -0.1, -0.1);
     light.matrix.translate(-0.5, -0.5, -0.5);
