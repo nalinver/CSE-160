@@ -71,13 +71,12 @@ var FSHADER_SOURCE = `
     // eye
     vec3 E = normalize(u_cameraPos - vec3(v_VertPos));
 
-    // specular – concentrated on objects, minimal on sky
+    // specular - (Used cursor to fix specular, because it was highlighting the sky too much)
     float specular = 0.0;
     if (NdotL > 0.0) {
         float specAngle = max(dot(E, R), 0.0);
         specular = pow(specAngle, 10.0);
 
-        // Greatly reduce specular on the sky cube (texture 1)
         float specStrength = 1.0;
         if (u_whichTexture == 1) {
             specStrength = 0.05;
@@ -93,7 +92,6 @@ var FSHADER_SOURCE = `
     if (u_lightOn) {
         gl_FragColor = vec4(result, 1.0);
     } else {
-        // When light is off, use a brighter ambient-only term
         vec3 ambientOff = baseColor * 0.8;
         gl_FragColor = vec4(ambientOff, 1.0);
     }
@@ -304,10 +302,6 @@ function sendTextureToGLSL(image) {
     // Set the texture unit 0 to the sampler
     gl.uniform1i(u_Sampler0, 0);
 
-    //gl.clear(gl.COLOR_BUFFER_BIT);   // Clear <canvas>
-
-    //gl.drawArrays(gl.TRIANGLE_STRIP, 0, n); // Draw the rectangle
-
     console.log('Finished sending texture to GLSL');
 }
 
@@ -334,6 +328,7 @@ let g_animation = false;          // animation flag
 let g_normal = false;            // normal flag
 let g_LightPos = [0, 1, -2];
 let g_lightOn = true;
+let g_lightAnimation = false;
 function addActionsForHtmlUI() {
 
     // Joint Slider slider
@@ -341,8 +336,6 @@ function addActionsForHtmlUI() {
         g_jointAngle = this.value;
         renderAllShapes();
     });
-
-
 
     // Animation button
     document.getElementById('animationButtonON').onclick = function () { g_animation = true; };
@@ -361,6 +354,9 @@ function addActionsForHtmlUI() {
     document.getElementById('lightOn').onclick = function () { g_lightOn = true; renderAllShapes(); }
     document.getElementById('lightOff').onclick = function () { g_lightOn = false; renderAllShapes(); }
 
+    // Light Animation button
+    document.getElementById('lightAnimation').onclick = function () { g_lightAnimation = !g_lightAnimation; }
+
 }
 
 
@@ -375,8 +371,6 @@ function main() {
     // Set up actions for buttons and sliders
     addActionsForHtmlUI();
 
-
-
     setupMouseHandlers();
     document.onkeydown = keydown;
 
@@ -384,9 +378,6 @@ function main() {
 
     // Specify the color for clearing <canvas>
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
-
-    // Clear <canvas>
-    //gl.clear(gl.COLOR_BUFFER_BIT);
 
     requestAnimationFrame(tick);
 }
@@ -396,7 +387,6 @@ var g_seconds = performance.now() / 1000 - g_startTime;
 
 function tick() {
     g_seconds = performance.now() / 1000 - g_startTime;
-    //console.log(g_seconds);
 
     updateAnimationAngles();
 
@@ -406,15 +396,14 @@ function tick() {
 }
 
 function updateAnimationAngles() {
-    // Make the light spin in a horizontal circle around the top of the sphere
-    // Sphere is centered roughly at (-2, 0.5, -2) with radius ~0.5
-    var cx = -2.0;
-    var cy = 1.2;     // slightly above sphere top
-    var cz = -2.0;
+
+    if (!g_lightAnimation) {
+        return;
+    }
+
     var radius = 2.0; // distance of light from sphere center
 
     g_LightPos[0] = radius * Math.cos(g_seconds);
-    //g_LightPos[1] = cy;
     g_LightPos[2] = radius * Math.sin(g_seconds);
 }
 
@@ -510,7 +499,7 @@ function keydown(ev) {
 }
 
 
-// *** cursor defined here ***
+// *** Used Cursor to generate maze ***
 // Generate a maze with recursive backtracking. 1 = wall, 0 = path.
 // cellRows/cellCols = number of "rooms"; grid size is (2*cellRows+1) x (2*cellCols+1).
 function generateMaze(cellRows, cellCols) {
