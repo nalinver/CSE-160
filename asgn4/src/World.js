@@ -5,6 +5,7 @@ var VSHADER_SOURCE = `
   attribute vec3 a_Normal;
   varying vec2 v_UV;
   varying vec3 v_Normal;
+  varying vec4 v_VertPos;
   uniform mat4 u_ModelMatrix;
   uniform mat4 u_GlobalRotateMatrix;
   uniform mat4 u_viewMatrix;
@@ -14,6 +15,7 @@ var VSHADER_SOURCE = `
     gl_PointSize = u_size;
     v_UV = a_UV;
     v_Normal = a_Normal;
+    v_VertPos = u_ModelMatrix * a_Position;
   }
 `;
 
@@ -24,6 +26,8 @@ var FSHADER_SOURCE = `
   varying vec2 v_UV;
   uniform sampler2D u_Sampler0;
   uniform sampler2D u_Sampler1;
+  uniform vec3 u_lightPos;
+  varying vec4 v_VertPos;
   uniform int u_whichTexture;
   void main() {
 
@@ -44,6 +48,14 @@ var FSHADER_SOURCE = `
         gl_FragColor = vec4(1, 0.2, 0.2, 1.0);         
     }
 
+    vec3 lightVector = vec3(v_VertPos) - u_lightPos;
+    float r = length(lightVector);
+    if (r < 1.0) {
+        gl_FragColor = vec4(1, 0, 0, 1.0);
+    } else if (r < 2.0) {
+        gl_FragColor = vec4(0, 1, 0, 1.0);
+    }
+
   }
 `;
 
@@ -52,6 +64,7 @@ var FSHADER_SOURCE = `
 let canvas;
 let gl;
 let a_position;
+let a_Normal;
 let u_FragColor;
 let u_size;
 let u_segments;
@@ -61,8 +74,7 @@ let a_UV;
 let u_Sampler0;
 let u_Sampler1;
 let u_whichTexture;
-let a_Normal;
-
+let u_lightPos;
 function setUpWebGL() {
     // Retrieve <canvas> element
     canvas = document.getElementById('webgl');
@@ -169,6 +181,14 @@ function connectVariableGLSL() {
         return;
     }
 
+    // Get the storage location of u_lightPos
+    u_lightPos = gl.getUniformLocation(gl.program, 'u_lightPos');
+    if (!u_lightPos) {
+        console.log('Failed to get the storage location of u_lightPos');
+        return;
+    }
+
+
 }
 
 
@@ -254,6 +274,7 @@ let g_jointAngle = 0;            // joint angle
 let g_jointAngle2 = 0;            // joint angle 2
 let g_animation = false;          // animation flag
 let g_normal = false;            // normal flag
+let g_LightPos = [0, 1, -2];
 function addActionsForHtmlUI() {
 
     // Joint Slider slider
@@ -271,6 +292,11 @@ function addActionsForHtmlUI() {
     // Normal button
     document.getElementById('normalOn').onclick = function () { g_normal = true; }
     document.getElementById('normalOff').onclick = function () { g_normal = false; }
+
+    // Light sliders - each slider controls its own axis
+    document.getElementById('lightX').addEventListener('input', function () { g_LightPos[0] = this.value / 100; renderAllShapes(); });
+    document.getElementById('lightY').addEventListener('input', function () { g_LightPos[1] = this.value / 100; renderAllShapes(); });
+    document.getElementById('lightZ').addEventListener('input', function () { g_LightPos[2] = this.value / 100; renderAllShapes(); });
 
 }
 
@@ -309,10 +335,17 @@ function tick() {
     g_seconds = performance.now() / 1000 - g_startTime;
     //console.log(g_seconds);
 
+    updateAnimationAngles();
 
     renderAllShapes();
 
     requestAnimationFrame(tick);
+}
+
+function updateAnimationAngles() {
+    g_LightPos[0] = Math.cos(g_seconds);
+    //g_LightPos[1] = Math.sin(g_seconds);
+    g_LightPos[2] = -Math.cos(g_seconds);
 }
 
 function onMove(ev) {
@@ -736,6 +769,30 @@ function renderAllShapes() {
     footR.matrix.translate(-0.01, legFullH + 0.02, 0);
     footR.matrix.scale(0.08, 0.04, 0.12);
     footR.render();
+
+    // Draw the sphere
+    var sphere = new Sphere();
+    sphere.color = [1, 0, 0, 1.0];
+    sphere.matrix.translate(-2, 0.5, 2);
+    if (g_normal) {
+        sphere.textureNum = -3;
+    } else {
+        sphere.color = [1, 0, 0, 1.0];
+    }
+    sphere.matrix.scale(-1, -1, -1);
+    sphere.render();
+
+
+    // Pass the light position to GLSL
+    gl.uniform3f(u_lightPos, g_LightPos[0], g_LightPos[1], g_LightPos[2]);
+
+    // Draw the light
+    var light = new Cube();
+    light.color = [2, 2, 0, 1.0];
+    light.matrix.translate(g_LightPos[0], g_LightPos[1], g_LightPos[2]);
+    light.matrix.scale(0.1, 0.1, 0.1);
+    light.matrix.translate(-0.5, -0.5, -0.5);
+    light.render();
 
     var duration = performance.now() - startTime;
     sendTextToHtml(' ms: ' + Math.floor(duration) + ' fps: ' + Math.floor(10000 / duration), "numdot");
