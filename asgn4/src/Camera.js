@@ -1,8 +1,9 @@
 class Camera {
     constructor() {
-        this.fov = 60.0;
-        this.eye = new Vector3([0, 0, 0]);
-        this.at = new Vector3([0, 0, -1]);
+        this.fov = 100.0;
+        // Start the camera 1 unit above the ground, looking forward
+        this.eye = new Vector3([0, 1, 0]);
+        this.at = new Vector3([0, 1, -1]);
         this.up = new Vector3([0, 1, 0]);
 
         this.viewMatrix = new Matrix4();

@@ -29,6 +29,8 @@ var FSHADER_SOURCE = `
   uniform vec3 u_lightPos;
   varying vec4 v_VertPos;
   uniform int u_whichTexture;
+  uniform vec3 u_cameraPos;
+  uniform bool u_lightOn;
   void main() {
 
     if (u_whichTexture == -3) {
@@ -48,13 +50,54 @@ var FSHADER_SOURCE = `
         gl_FragColor = vec4(1, 0.2, 0.2, 1.0);         
     }
 
-    vec3 lightVector = vec3(v_VertPos) - u_lightPos;
+    vec3 lightVector = u_lightPos - vec3(v_VertPos);
     float r = length(lightVector);
-    if (r < 1.0) {
-        gl_FragColor = vec4(1, 0, 0, 1.0);
-    } else if (r < 2.0) {
-        gl_FragColor = vec4(0, 1, 0, 1.0);
+    //if (r < 1.0) {
+    //    gl_FragColor = vec4(1, 0, 0, 1.0);
+    //} else if (r < 2.0) {
+    //    gl_FragColor = vec4(0, 1, 0, 1.0);
+    //}
+
+    //gl_FragColor = vec4(vec3(gl_FragColor)/(r*r), 5.0);
+
+    // N dot L
+    vec3 L = normalize(lightVector);
+    vec3 N = normalize(v_Normal);
+    float NdotL = max(dot(N, L), 0.0);
+
+    // Reflection
+    vec3 R = reflect(-L, N);
+    
+    // eye
+    vec3 E = normalize(u_cameraPos - vec3(v_VertPos));
+
+    // specular – concentrated on objects, minimal on sky
+    float specular = 0.0;
+    if (NdotL > 0.0) {
+        float specAngle = max(dot(E, R), 0.0);
+        specular = pow(specAngle, 10.0);
+
+        // Greatly reduce specular on the sky cube (texture 1)
+        float specStrength = 1.0;
+        if (u_whichTexture == 1) {
+            specStrength = 0.05;
+        }
+        specular *= specStrength;
     }
+
+    vec3 baseColor = vec3(gl_FragColor);
+    vec3 diffuse = baseColor * NdotL * 0.7;
+    vec3 ambient = baseColor * 0.3;
+    vec3 result = diffuse + ambient + specular;
+    
+    if (u_lightOn) {
+        gl_FragColor = vec4(result, 1.0);
+    } else {
+        // When light is off, use a brighter ambient-only term
+        vec3 ambientOff = baseColor * 0.8;
+        gl_FragColor = vec4(ambientOff, 1.0);
+    }
+
 
   }
 `;
@@ -75,6 +118,7 @@ let u_Sampler0;
 let u_Sampler1;
 let u_whichTexture;
 let u_lightPos;
+let u_lightOn;
 function setUpWebGL() {
     // Retrieve <canvas> element
     canvas = document.getElementById('webgl');
@@ -174,6 +218,13 @@ function connectVariableGLSL() {
         return;
     }
 
+    // Get the storage location of u_cameraPos
+    u_cameraPos = gl.getUniformLocation(gl.program, 'u_cameraPos');
+    if (!u_cameraPos) {
+        console.log('Failed to get the storage location of u_cameraPos');
+        return;
+    }
+
     // Get the storage location of a_Normal
     a_Normal = gl.getAttribLocation(gl.program, 'a_Normal');
     if (!a_Normal) {
@@ -185,6 +236,13 @@ function connectVariableGLSL() {
     u_lightPos = gl.getUniformLocation(gl.program, 'u_lightPos');
     if (!u_lightPos) {
         console.log('Failed to get the storage location of u_lightPos');
+        return;
+    }
+
+    // Get the storage location of u_lightOn
+    u_lightOn = gl.getUniformLocation(gl.program, 'u_lightOn');
+    if (!u_lightOn) {
+        console.log('Failed to get the storage location of u_lightOn');
         return;
     }
 
@@ -275,6 +333,7 @@ let g_jointAngle2 = 0;            // joint angle 2
 let g_animation = false;          // animation flag
 let g_normal = false;            // normal flag
 let g_LightPos = [0, 1, -2];
+let g_lightOn = true;
 function addActionsForHtmlUI() {
 
     // Joint Slider slider
@@ -297,6 +356,10 @@ function addActionsForHtmlUI() {
     document.getElementById('lightX').addEventListener('input', function () { g_LightPos[0] = this.value / 100; renderAllShapes(); });
     document.getElementById('lightY').addEventListener('input', function () { g_LightPos[1] = this.value / 100; renderAllShapes(); });
     document.getElementById('lightZ').addEventListener('input', function () { g_LightPos[2] = this.value / 100; renderAllShapes(); });
+
+    // Light On button
+    document.getElementById('lightOn').onclick = function () { g_lightOn = true; renderAllShapes(); }
+    document.getElementById('lightOff').onclick = function () { g_lightOn = false; renderAllShapes(); }
 
 }
 
@@ -343,9 +406,16 @@ function tick() {
 }
 
 function updateAnimationAngles() {
-    g_LightPos[0] = Math.cos(g_seconds);
-    //g_LightPos[1] = Math.sin(g_seconds);
-    g_LightPos[2] = -Math.cos(g_seconds);
+    // Make the light spin in a horizontal circle around the top of the sphere
+    // Sphere is centered roughly at (-2, 0.5, -2) with radius ~0.5
+    var cx = -2.0;
+    var cy = 1.2;     // slightly above sphere top
+    var cz = -2.0;
+    var radius = 2.0; // distance of light from sphere center
+
+    g_LightPos[0] = radius * Math.cos(g_seconds);
+    //g_LightPos[1] = cy;
+    g_LightPos[2] = radius * Math.sin(g_seconds);
 }
 
 function onMove(ev) {
@@ -542,8 +612,9 @@ function renderAllShapes() {
     } else {
         sky.textureNum = 1;
     }
-    sky.matrix.translate(-55.12, -1, -55.12);
-    sky.matrix.scale(500, 500, 500);
+    sky.matrix.translate(-0.5, -2.00, 0);
+    sky.matrix.scale(7, 7, 7);
+    sky.matrix.translate(-0.5, 0, -0.5);
     sky.render();
 
     // Draw the floor
@@ -773,24 +844,31 @@ function renderAllShapes() {
     // Draw the sphere
     var sphere = new Sphere();
     sphere.color = [1, 0, 0, 1.0];
-    sphere.matrix.translate(-2, 0.5, 2);
+    sphere.matrix.translate(0, 0.5, 0);
     if (g_normal) {
         sphere.textureNum = -3;
     } else {
         sphere.color = [1, 0, 0, 1.0];
     }
-    sphere.matrix.scale(-1, -1, -1);
+    // Use positive scale so normals and lighting face the correct way
+    sphere.matrix.scale(0.5, 0.5, 0.5);
     sphere.render();
 
 
     // Pass the light position to GLSL
     gl.uniform3f(u_lightPos, g_LightPos[0], g_LightPos[1], g_LightPos[2]);
 
+    // Pass the camera position to GLSL
+    gl.uniform3f(u_cameraPos, camera.eye.elements[0], camera.eye.elements[1], camera.eye.elements[2]);
+
+    // Pass the light on flag to GLSL
+    gl.uniform1i(u_lightOn, g_lightOn);
+
     // Draw the light
     var light = new Cube();
     light.color = [2, 2, 0, 1.0];
     light.matrix.translate(g_LightPos[0], g_LightPos[1], g_LightPos[2]);
-    light.matrix.scale(0.1, 0.1, 0.1);
+    light.matrix.scale(-0.1, -0.1, -0.1);
     light.matrix.translate(-0.5, -0.5, -0.5);
     light.render();
 
