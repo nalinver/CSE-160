@@ -174,7 +174,7 @@ function main() {
     let beetleModel = null;
     const beetleBaseY = -0.5;
 
-    // Function to add the model to the scene and set the color to green
+    // Function to add the model to the scene
     function addModelToScene(object) {
         beetleModel = object;
         scene.add(object);
@@ -258,21 +258,24 @@ function main() {
 
 
     const cylinderGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1.2, 32);
-    const cylinderMaterial = new THREE.MeshStandardMaterial({
+    const texturedCylinderMaterial = new THREE.MeshStandardMaterial({
         map: texture,
     });
-    const cylinders = [
-        makeInstance(cylinderGeometry, cylinderMaterial, -2, 1.2, 2),
-        makeInstance(cylinderGeometry, cylinderMaterial, 2, 1.2, 2),
-        makeInstance(cylinderGeometry, cylinderMaterial, 4, 1.2, 2),
-        makeInstance(cylinderGeometry, cylinderMaterial, 6, 1.2, 2),
-        makeInstance(cylinderGeometry, cylinderMaterial, 8, 1.2, 2),
-        makeInstance(cylinderGeometry, cylinderMaterial, 10, 1.2, 2),
-        makeInstance(cylinderGeometry, cylinderMaterial, 12, 1.2, 2),
-        makeInstance(cylinderGeometry, cylinderMaterial, 14, 1.2, 2),
-        makeInstance(cylinderGeometry, cylinderMaterial, 16, 1.2, 2),
-        makeInstance(cylinderGeometry, cylinderMaterial, 18, 1.2, 2),
+    const coloredCylinderMaterials = [
+        new THREE.MeshStandardMaterial({ color: 0xff6b6b }),
+        new THREE.MeshStandardMaterial({ color: 0x4ecdc4 }),
+        new THREE.MeshStandardMaterial({ color: 0xffd166 }),
+        new THREE.MeshStandardMaterial({ color: 0x6a4c93 }),
     ];
+    const cylinderXs = [-2, 2, 4, 6, 8, 10, 12, 14, 16, 18];
+    const cylinders = cylinderXs.map((x, ndx) => {
+        const useTexture = ndx % 2 === 0;
+        const materialForCylinder = useTexture
+            ? texturedCylinderMaterial
+            : coloredCylinderMaterials[ndx % coloredCylinderMaterials.length];
+        return makeInstance(cylinderGeometry, materialForCylinder, x, 1.2, 2);
+    });
+    const defaultOrbitCenter = new THREE.Vector3(0, beetleBaseY, 0);
 
     const bgTexture = loader.load('resources/Downtown-Boston-Skylines.jpg');
     bgTexture.colorSpace = THREE.SRGBColorSpace;
@@ -285,23 +288,33 @@ function main() {
 
         time *= 0.0004; // convert time to seconds
 
-        // Rotate the boxes
+        const orbitCenter = beetleModel ? beetleModel.position : defaultOrbitCenter;
+
+        // Orbit the cubes around the beetle
         cubes.forEach((cube, ndx) => {
-
-            const speed = 1 + ndx * .1;
-            const rot = time * speed;
-            cube.rotation.x = rot;
-            cube.rotation.y = rot;
-
+            const angle = time * (2 + ndx * 0.08) + (ndx / cubes.length) * Math.PI * 2;
+            const radius = 3 + (ndx % 3) * 0.7;
+            cube.position.x = orbitCenter.x + Math.cos(angle) * radius;
+            cube.position.z = orbitCenter.z + Math.sin(angle) * radius;
+            cube.position.y = orbitCenter.y + 0.8 + Math.sin(angle * 2 + ndx) * 0.35;
+            cube.rotation.x = angle * 1.8;
+            cube.rotation.y = angle * 2.2;
         });
 
-        // Rotate the cylinders
+        // Orbit the cylinders on a higher ring
         cylinders.forEach((cylinder, ndx) => {
-            const speed = 1 + ndx * .1;
-            const rot = time * speed;
-            cylinder.rotation.x = rot;
-            cylinder.rotation.y = rot;
+            const angle = -time * (1.6 + ndx * 0.05) + (ndx / cylinders.length) * Math.PI * 2;
+            const radius = 4.2 + (ndx % 2) * 0.9;
+            cylinder.position.x = orbitCenter.x + Math.cos(angle) * radius;
+            cylinder.position.z = orbitCenter.z + Math.sin(angle) * radius;
+            cylinder.position.y = orbitCenter.y + 1.8 + Math.sin(angle * 3 + ndx * 0.5) * 0.4;
+            cylinder.rotation.y = angle * 3;
+            cylinder.rotation.z = Math.sin(angle * 2) * 0.25;
         });
+
+        if (beetleModel) {
+            beetleModel.rotation.y = time * 1.4;
+        }
 
         // Set the background texture
         const canvasAspect = canvas.clientWidth / canvas.clientHeight;
